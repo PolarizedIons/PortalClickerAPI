@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -122,16 +123,34 @@ namespace PortalClickerApi
                         ValidAudience = Configuration.Jwt.Audience,
                     };
                     options.RequireHttpsMetadata = false;
+
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken = context.Request.Query["access_token"];
+
+                            // Set token when connecting via SignalR
+                            var path = context.HttpContext.Request.Path;
+                            if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/live")))
+                            {
+                                context.Token = accessToken;
+                            }
+                            return Task.CompletedTask;
+                        }
+                    };
+
                 });
 
             services.AddSingleton(Configuration);
             services.DiscoverDiServices();
         }
-
-
+        
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, DatabaseContext db)
         {
             db.Database.Migrate();
+
+            JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
             app.UseSerilogRequestLogging();
             app.UseCors();
@@ -153,7 +172,7 @@ namespace PortalClickerApi
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapControllers();
-                endpoints.MapHub<ClickerHub>("/live").RequireAuthorization();
+                endpoints.MapHub<ClickerHub>("/live");
             });
         }
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

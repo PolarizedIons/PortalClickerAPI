@@ -109,7 +109,7 @@ namespace PortalClickerApi.Services
             };
 
             var roles = await _userManager.GetRolesAsync(user);
-            var roleClaims = roles.Select(r => new Claim(ClaimTypes.Role, r));
+            var roleClaims = roles.Select(x => new Claim(ClaimTypes.Role, x));
             claims.AddRange(roleClaims);
 
             var expires = DateTime.UtcNow.Add(AccessTokenValidFor);
