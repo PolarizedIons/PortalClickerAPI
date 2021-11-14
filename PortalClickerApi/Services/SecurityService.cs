@@ -54,7 +54,7 @@ namespace PortalClickerApi.Services
             return new LoginResponse(user, accessToken, refreshToken);
         }
 
-        public async Task<object> Refresh(RefreshTokenRequest payload)
+        public async Task<LoginResponse> Refresh(RefreshTokenRequest payload)
         {
             var user = await GetUser(payload.UserId);
             await ExpireRefreshToken(user, payload.RefreshToken);
