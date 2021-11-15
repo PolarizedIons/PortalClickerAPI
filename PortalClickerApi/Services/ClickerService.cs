@@ -103,9 +103,9 @@ namespace PortalClickerApi.Services
             ApplyUpgradeStats(player, upgrade);
             await _db.SaveChangesAsync();
 
-            await _clickerHub.Clients.Group(userId.ToString()).OnUpgradePurchased(upgrade.Id);
-            
-            return new UpgradeResponse(upgrade, true);
+            var response = new UpgradeResponse(upgrade, true);
+            await _clickerHub.Clients.Group(userId.ToString()).OnUpgradePurchased(response);
+            return response;
         }
 
         private bool ValidateTick(ClickerPlayer player, int delta)
