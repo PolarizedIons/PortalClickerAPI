@@ -8,5 +8,6 @@ namespace PortalClickerApi.Hubs
     {
         public Task OnUpgradePurchased(UpgradeResponse upgrade);
         public Task OnPortalCountUpdated(ulong portalCount);
+        public Task OnPlayerStatsUpdated(PlayerResponse player);
     }
 }

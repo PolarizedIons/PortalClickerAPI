@@ -23,6 +23,14 @@ namespace PortalClickerApi.Controllers
         }
 
         [NoTransaction]
+        [HttpGet("stats")]
+        public async Task<ActionResult<PlayerResponse>> GetSelfStats()
+        {
+            var result = await _clickerService.GetStats(this.GetUserId());
+            return Ok(result);
+        }
+
+        [NoTransaction]
         [HttpGet("upgrade")]
         public async Task<ActionResult<IEnumerable<UpgradeResponse>>> GetUpgrades()
         {

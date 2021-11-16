@@ -36,10 +36,10 @@ namespace PortalClickerApi.Hubs
             return result;
         }
 
-        public async Task<ulong> Click()
+        public async Task<ulong> Click(ulong amount)
         {
             var userId = Context.User.GetUserId();
-            var result = await _clickerService.Click(userId, Context.ConnectionId);
+            var result = await _clickerService.Click(userId, amount, Context.ConnectionId);
             return result;
         }
     }

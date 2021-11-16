@@ -18,8 +18,10 @@ namespace PortalClickerApi.Services
 {
     public class ClickerService : IScopedDiService
     {
-        private const int MaxDelta = 30;
-        private const int ClicksPerSecond = 10;
+        private const int TickMaxDelta = 30; // max 30 seconds between ticks
+        private const int ClicksPerSecond = 20; // max 20 clicks per second
+        private const double ClickMinDelta = 1d / ClicksPerSecond;  // min amount of time to pass per click
+        private const int ClickMaxCount = ClicksPerSecond * 5; // max amount the user can click per event
 
         private readonly DatabaseContext _db;
         private readonly UserManager<ApplicationUser> _userManager;
@@ -50,15 +52,15 @@ namespace PortalClickerApi.Services
             return player.PortalCount;
         }
 
-        public async Task<ulong> Click(Guid userId, string connectionId)
+        public async Task<ulong> Click(Guid userId, ulong amount, string connectionId)
         {
             var player = await GetPlayer(userId);
-            if (!ValidateClick(player))
+            if (!ValidateClick(player, amount))
             {
                 return player.PortalCount;
             }
 
-            player.PortalCount += player.BaseClickAmount;
+            player.PortalCount += player.BaseClickAmount * amount;
             player.LastClick = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
@@ -105,29 +107,42 @@ namespace PortalClickerApi.Services
 
             var response = new UpgradeResponse(upgrade, true);
             await _clickerHub.Clients.Group(userId.ToString()).OnUpgradePurchased(response);
+            await _clickerHub.Clients.Group(userId.ToString()).OnPlayerStatsUpdated(new PlayerResponse(player));
             return response;
+        }
+
+        public async Task<PlayerResponse> GetStats(Guid userId)
+        {
+            var player = await _db.ClickerPlayers.FirstAsync(x => x.UserId == userId);
+            return new PlayerResponse(player);
         }
 
         private bool ValidateTick(ClickerPlayer player, int delta)
         {
-            if (delta > MaxDelta)
+            if (delta > TickMaxDelta || delta <= 0)
             {
                 return false;
             }
 
             if (player.LastTick.HasValue)
             {
-                return player.LastTick.Value.AddSeconds(delta) < DateTime.UtcNow;
+                var diff = Math.Abs((DateTime.UtcNow - player.LastTick.Value.AddSeconds(delta)).Milliseconds);
+                return diff <= 1000; // allow 1000ms of error 
             }
 
             return true;
         }
 
-        private bool ValidateClick(ClickerPlayer player)
+        private bool ValidateClick(ClickerPlayer player, ulong amount)
         {
+            if (ClickMaxCount < amount)
+            {
+                return false;
+            }
+
             if (player.LastClick.HasValue)
             {
-                return player.LastClick.Value.AddSeconds((double)1 / ClicksPerSecond) < DateTime.UtcNow;
+                return player.LastClick.Value.AddSeconds(ClickMinDelta * amount) < DateTime.UtcNow;
             }
 
             return true;
@@ -153,6 +168,10 @@ namespace PortalClickerApi.Services
                 LastTick = DateTime.UtcNow,
                 PortalCount = 0,
                 PortalsPerSecond = 0,
+                BaseClickAmount = 1,
+                ClickMultiplier = 1.0,
+                ItemPortalMultiplier = 1.0,
+                ItemPriceMultiplier = 1.0
             };
 
             await _db.ClickerPlayers.AddAsync(player);
