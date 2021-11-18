@@ -44,5 +44,20 @@ namespace PortalClickerApi.Controllers
             var result = await _clickerService.PurchaseUpgrade(this.GetUserId(), id);
             return Ok(result);
         }
+
+        [NoTransaction]
+        [HttpGet("item")]
+        public async Task<ActionResult<IEnumerable<ItemResponse>>> GetItems()
+        {
+            var result = await _clickerService.GetItems(this.GetUserId());
+            return Ok(result);
+        }
+
+        [HttpPost("item/{id:guid}")]
+        public async Task<ActionResult<IEnumerable<ItemResponse>>> PurcahseItem(Guid id)
+        {
+            var result = await _clickerService.PurchaseItem(this.GetUserId(), id);
+            return Ok(result);
+        }
     }
 }

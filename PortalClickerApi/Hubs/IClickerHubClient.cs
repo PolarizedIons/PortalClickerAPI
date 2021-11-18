@@ -7,7 +7,8 @@ namespace PortalClickerApi.Hubs
     public interface IClickerHubClient
     {
         public Task OnUpgradePurchased(UpgradeResponse upgrade);
-        public Task OnPortalCountUpdated(ulong portalCount);
+        public Task OnPortalCountUpdated(uint portalCount);
         public Task OnPlayerStatsUpdated(PlayerResponse player);
+        public Task OnItemPurchased(ItemResponse item);
     }
 }

@@ -11,6 +11,7 @@ namespace PortalClickerApi.Database
     {
         public DbSet<ClickerPlayer> ClickerPlayers { get; set; }
         public DbSet<ClickerSystemItem> SystemItems { get; set; }
+        public DbSet<ClickerUserItem> UserItems { get; set; }
         public DbSet<ClickerUpgrade> Upgrades { get; set; }
 
         public DatabaseContext(DbContextOptions<DatabaseContext> options) : base(options)

@@ -34,39 +34,46 @@ namespace PortalClickerApi.Services
             _clickerHub = clickerHub;
         }
 
-        public async Task<ulong> Tick(Guid userId, int delta, string connectionId)
+        public async Task<uint> Tick(Guid userId, double delta, string connectionId = null)
         {
             var player = await GetPlayer(userId);
             if (!ValidateTick(player, delta))
             {
-                return player.PortalCount;
+                return (uint)player.PortalCount;
             }
 
-            var addition = (ulong)delta * player.PortalsPerSecond;
+            var addition = (ulong)(delta * player.PortalsPerSecond);
             player.PortalCount += addition;
             player.LastTick = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
-            await _clickerHub.Clients.GroupExcept(userId.ToString(), connectionId).OnPortalCountUpdated(player.PortalCount);
+            if (string.IsNullOrEmpty(connectionId))
+            {
+                await _clickerHub.Clients.Group(userId.ToString()).OnPortalCountUpdated((uint)player.PortalCount);
+            }
+            else
+            {
+                await _clickerHub.Clients.GroupExcept(userId.ToString(), connectionId).OnPortalCountUpdated((uint)player.PortalCount);
+            }
 
-            return player.PortalCount;
+            return (uint)player.PortalCount;
         }
 
-        public async Task<ulong> Click(Guid userId, ulong amount, string connectionId)
+        public async Task<uint> Click(Guid userId, ulong amount, string connectionId)
         {
             var player = await GetPlayer(userId);
             if (!ValidateClick(player, amount))
             {
-                return player.PortalCount;
+                return (uint)player.PortalCount;
             }
 
             player.PortalCount += player.BaseClickAmount * amount;
             player.LastClick = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
-            await _clickerHub.Clients.GroupExcept(userId.ToString(), connectionId).OnPortalCountUpdated(player.PortalCount);
+            await _clickerHub.Clients.GroupExcept(userId.ToString(), connectionId).OnPortalCountUpdated((uint)player.PortalCount);
 
-            return player.PortalCount;
+            return (uint)player.PortalCount;
         }
 
         public async Task<IEnumerable<UpgradeResponse>> GetUpgrades(Guid userId)
@@ -111,13 +118,54 @@ namespace PortalClickerApi.Services
             return response;
         }
 
+        public async Task<IEnumerable<ItemResponse>> GetItems(Guid userId)
+        {
+            var player = await _db.ClickerPlayers.FirstAsync(x => x.UserId == userId);
+            var systemItems = await _db.SystemItems
+                .Where(x => x.UserItems.All(ui => ui.User.Id != userId))
+                .Select(x => new ItemDbResult { SystemItem = x, UserItem = null })
+                .ToListAsync();
+            var userItems = await _db.UserItems
+                .Where(x => x.User.Id == userId)
+                .Select(x => new ItemDbResult { UserItem = x, SystemItem = x.SystemItem })
+                .ToListAsync();
+
+            return systemItems
+                .Union(userItems)
+                .OrderBy(x => ClickerSystemItem.CalculateCost(x.SystemItem.CostExpression, 0))
+                .Select(x => new ItemResponse(player, x.SystemItem, x.UserItem));
+        }
+
+        public async Task<ItemResponse> PurchaseItem(Guid userId, Guid id)
+        {
+            var player = await GetPlayer(userId);
+            var userItem = await GetUserItemFromSystemId(player, id);
+            var cost = userItem.NextCost * player.ItemPriceMultiplier;
+            if (player.PortalCount < cost)
+            {
+                throw new BadRequestException("You cannot afford this item.");
+            }
+
+            await Tick(userId, (DateTime.UtcNow - (player.LastTick ?? DateTime.UtcNow)).TotalSeconds);
+
+            player.PortalCount -= cost;
+            player.PortalsPerSecond += userItem.SystemItem.Portals * player.ItemPortalMultiplier;
+            userItem.Amount += 1;
+
+            await _db.SaveChangesAsync();
+
+            var response = new ItemResponse(player, userItem.SystemItem, userItem);
+            await _clickerHub.Clients.Group(userId.ToString()).OnItemPurchased(response);
+            return response;
+        }
+
         public async Task<PlayerResponse> GetStats(Guid userId)
         {
             var player = await _db.ClickerPlayers.FirstAsync(x => x.UserId == userId);
             return new PlayerResponse(player);
         }
 
-        private bool ValidateTick(ClickerPlayer player, int delta)
+        private bool ValidateTick(ClickerPlayer player, double delta)
         {
             if (delta > TickMaxDelta || delta <= 0)
             {
@@ -150,7 +198,9 @@ namespace PortalClickerApi.Services
 
         private async Task<ClickerPlayer> GetPlayer(Guid userId)
         {
-            var player = await _db.ClickerPlayers.FirstOrDefaultAsync(x => x.User.Id == userId) 
+            var player = await _db.ClickerPlayers
+                             .Include(x => x.User)
+                             .FirstOrDefaultAsync(x => x.User.Id == userId) 
                          ?? await CreatePlayer(userId);
             return player;
         }
@@ -200,5 +250,34 @@ namespace PortalClickerApi.Services
                 player.ItemPriceMultiplier *= upgrade.MultiplierAmount;
             }
         }
+
+        private async Task<ClickerUserItem> GetUserItemFromSystemId(ClickerPlayer player, Guid systemItemId)
+        {
+            var item = await _db.UserItems
+                .Include(x => x.SystemItem)
+                .FirstOrDefaultAsync(x => x.SystemItem.Id == systemItemId && x.User.Id == player.UserId);
+
+            if (item == null)
+            {
+                var systemItem = _db.SystemItems.First(x => x.Id == systemItemId);
+
+                item = new ClickerUserItem
+                {
+                    Amount = 0,
+                    Player = player,
+                    User = player.User,
+                    SystemItem = systemItem, 
+                };
+                _db.UserItems.Add(item);
+            }
+
+            return item;
+        }
+    }
+
+    internal class ItemDbResult
+    {
+        public ClickerSystemItem SystemItem { get; set; }
+        public ClickerUserItem UserItem { get; set; }
     }
 }
