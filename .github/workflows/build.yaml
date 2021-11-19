@@ -1,0 +1,44 @@
+name: BuildAndPush
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  pre-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Bump version
+        id: version
+        uses: paulhatch/semantic-version@v4.0.2
+        with:
+          tag_prefix: "v"
+          major_pattern: "(MAJOR)"
+          minor_pattern: "(MINOR)"
+          format: "${major}.${minor}.${patch}"
+          short_tags: true
+          bump_each_commit: true
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+  build:
+    needs: [pre-build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Build Container & Publish to Github Registry
+        uses: elgohr/Publish-Docker-Github-Action@2.14
+        with:
+          name: polarizedions/portalclicker-api
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          registry: ghcr.io
+          tags: "latest,v${{ needs.pre-build.outputs.version }}"
+          dockerfile: ./PortalClickerApi/Dockerfile
