@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -12,7 +13,7 @@ namespace PortalClickerApi.Extentions
             var result = await identityResult;
             if (!result.Succeeded)
             {
-                throw new BadRequestException(message);
+                throw new BadRequestException(message + ": " + string.Join(", ", result.Errors.Select(x => x.Description)));
             }
 
             return result;
