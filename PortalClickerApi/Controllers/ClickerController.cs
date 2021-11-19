@@ -59,5 +59,13 @@ namespace PortalClickerApi.Controllers
             var result = await _clickerService.PurchaseItem(this.GetUserId(), id);
             return Ok(result);
         }
+
+        [NoTransaction]
+        [HttpGet("leaderboard")]
+        public async Task<ActionResult<IEnumerable<LeaderboardResponse>>> GetLeaderboard()
+        {
+            var result = await _clickerService.GetLeaderboard();
+            return Ok(result);
+        }
     }
 }

@@ -165,6 +165,16 @@ namespace PortalClickerApi.Services
             return new PlayerResponse(player);
         }
 
+        public async Task<IEnumerable<LeaderboardResponse>> GetLeaderboard()
+        {
+            return await _db.ClickerPlayers
+                .Include(x => x.User)
+                .OrderByDescending(x => x.PortalCount)
+                .Take(100)
+                .Select(x => new LeaderboardResponse(x))
+                .ToListAsync();
+        }
+
         private bool ValidateTick(ClickerPlayer player, double delta)
         {
             if (delta > TickMaxDelta || delta <= 0)
