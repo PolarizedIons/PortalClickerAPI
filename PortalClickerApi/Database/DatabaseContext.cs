@@ -19,7 +19,7 @@ namespace PortalClickerApi.Database
             ChangeTracker.Tracked += OnEntityTracked;
         }
 
-        private static void OnEntityTracked(object? sender, EntityTrackedEventArgs e)
+        private static void OnEntityTracked(object sender, EntityTrackedEventArgs e)
         {
             if (e.Entry.State == EntityState.Added && e.Entry.Entity is DbEntity entity)
             {

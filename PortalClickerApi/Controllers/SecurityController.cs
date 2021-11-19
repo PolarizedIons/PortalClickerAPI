@@ -44,12 +44,5 @@ namespace PortalClickerApi.Controllers
             var result = await _securityService.Refresh(payload);
             return Ok(result);
         }
-        
-        [HttpGet("temp")]
-        [NoTransaction]
-        public async Task<ActionResult<string>> Temp()
-        {
-            return Ok($"Hello {this.GetUserName()}!");
-        }
     }
 }
