@@ -22,19 +22,18 @@ namespace PortalClickerApi.Middleware
             var endpoint = context.Features.Get<IEndpointFeature>()?.Endpoint;
             var attribute = endpoint?.Metadata.GetMetadata<NoTransactionAttribute>();
 
-            if (attribute != null || context.Request.Path.StartsWithSegments("/swagger"))
+            if (attribute != null 
+                || context.Request.Path.StartsWithSegments("/swagger")
+                || context.Request.Path.StartsWithSegments("/healthz"))
             {
-                Log.Information("NO TRANACTION");
                 await _next.Invoke(context);
             }
             else
             {
-                Log.Information("TRANACTION");
                 await using var transaction = await db!.Database.BeginTransactionAsync();
                 await _next(context);
                 await db.SaveChangesAsync();
                 await transaction.CommitAsync();
-                Log.Information("TRANACTION COMPLETE");
             }
         }
     }

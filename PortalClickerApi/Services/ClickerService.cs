@@ -120,7 +120,7 @@ namespace PortalClickerApi.Services
 
         public async Task<IEnumerable<ItemResponse>> GetItems(Guid userId)
         {
-            var player = await _db.ClickerPlayers.FirstAsync(x => x.UserId == userId);
+            var player = await GetPlayer(userId);
             var systemItems = await _db.SystemItems
                 .Where(x => x.UserItems.All(ui => ui.User.Id != userId))
                 .Select(x => new ItemDbResult { SystemItem = x, UserItem = null })
@@ -161,7 +161,7 @@ namespace PortalClickerApi.Services
 
         public async Task<PlayerResponse> GetStats(Guid userId)
         {
-            var player = await _db.ClickerPlayers.FirstAsync(x => x.UserId == userId);
+            var player = await GetPlayer(userId);
             return new PlayerResponse(player);
         }
 
