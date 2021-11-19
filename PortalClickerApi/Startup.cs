@@ -39,7 +39,6 @@ namespace PortalClickerApi
             Configuration = configuration.GetSection("Api").Get<ApiConfig>();
         }
 
-        // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddHealthChecks()
@@ -173,8 +172,8 @@ namespace PortalClickerApi
             {
                 endpoints.MapControllers();
                 endpoints.MapHub<ClickerHub>("/live");
+                endpoints.MapHealthChecks("/healthz");
             });
         }
-        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
     }
 }
