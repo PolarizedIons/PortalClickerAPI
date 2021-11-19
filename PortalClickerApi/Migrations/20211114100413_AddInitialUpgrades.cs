@@ -76,7 +76,7 @@ namespace PortalClickerApi.Migrations
                     "Offload your work to the multiverse!", 
                     50000, 
                     DateTime.UtcNow,
-                    "ItemPortals prices reduced by 5%",
+                    "Item prices reduced by 5%",
                     0.95,
                     (int)UpgradeMultiplierType.ItemPrice
                 });
